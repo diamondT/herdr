@@ -225,7 +225,7 @@ fn attach_scroll_action(
             }),
         },
         crate::raw_input::RawInputEvent::Key(key)
-            if key.modifiers.is_empty()
+            if key.modifiers == KeyModifiers::SHIFT
                 && matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) =>
         {
             let direction = match key.code {
@@ -245,7 +245,7 @@ fn attach_scroll_action(
             })
         }
         crate::raw_input::RawInputEvent::Key(key)
-            if key.modifiers.is_empty()
+            if key.modifiers == KeyModifiers::SHIFT
                 && key.kind == KeyEventKind::Release
                 && matches!(key.code, KeyCode::PageUp | KeyCode::PageDown) =>
         {
@@ -526,9 +526,9 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn attach_escape_turns_plain_page_keys_into_scroll_actions() {
+    fn attach_escape_turns_shift_page_keys_into_scroll_actions() {
         let mut escape = AttachEscapeState::default();
-        match escape.filter_input(b"\x1b[5~".to_vec(), 12, 3) {
+        match escape.filter_input(b"\x1b[5;2~".to_vec(), 12, 3) {
             AttachInputAction::Semantic(AttachSemanticAction::Scroll {
                 source,
                 direction,
@@ -538,7 +538,7 @@ mod tests {
                 assert_eq!(
                     source,
                     AttachScrollSource::PageKey {
-                        input: b"\x1b[5~".to_vec()
+                        input: b"\x1b[5;2~".to_vec()
                     }
                 );
                 assert_eq!(direction, AttachScrollDirection::Up);
@@ -547,7 +547,7 @@ mod tests {
             other => panic!("expected page-up scroll action, got {other:?}"),
         }
 
-        match escape.filter_input(b"\x1b[6~".to_vec(), 12, 3) {
+        match escape.filter_input(b"\x1b[6;2~".to_vec(), 12, 3) {
             AttachInputAction::Semantic(AttachSemanticAction::Scroll {
                 source,
                 direction,
@@ -557,7 +557,7 @@ mod tests {
                 assert_eq!(
                     source,
                     AttachScrollSource::PageKey {
-                        input: b"\x1b[6~".to_vec()
+                        input: b"\x1b[6;2~".to_vec()
                     }
                 );
                 assert_eq!(direction, AttachScrollDirection::Down);
@@ -574,6 +574,18 @@ mod tests {
         match escape.filter_input(b"\x1b[5;5~".to_vec(), 12, 3) {
             AttachInputAction::Forward(bytes) => assert_eq!(bytes, b"\x1b[5;5~"),
             other => panic!("expected modified page key to forward, got {other:?}"),
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn attach_escape_forwards_plain_page_keys() {
+        let mut escape = AttachEscapeState::default();
+        for key in [b"\x1b[5~".as_slice(), b"\x1b[6~".as_slice()] {
+            match escape.filter_input(key.to_vec(), 12, 3) {
+                AttachInputAction::Forward(bytes) => assert_eq!(bytes, key),
+                other => panic!("expected plain page key to forward, got {other:?}"),
+            }
         }
     }
 }

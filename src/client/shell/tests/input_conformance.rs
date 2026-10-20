@@ -553,11 +553,7 @@ fn run_keyboard_conformance() -> Report {
                 }
                 let press = herdr.feed(&host_bytes.0);
                 let release = herdr.feed(&host_bytes.1);
-                let page_key_scrolls_herdr = *mods == 0
-                    && matches!(def.name, "pageup" | "pagedown")
-                    && herdr.runtime.plain_page_keys_use_host_scrollback() == Some(true);
-                let (Some(press), Some(release), false) = (press, release, page_key_scrolls_herdr)
-                else {
+                let (Some(press), Some(release)) = (press, release) else {
                     report.owned.push(format!(
                         "{}\t{}\t{}+{}",
                         host.name(),
@@ -2061,12 +2057,7 @@ mod windows_records {
                     let expected = [win32_input_mode(press), win32_input_mode(release)].concat();
                     let pressed = deliver_record(&mut herdr, &mut input, press, layout);
                     let released = deliver_record(&mut herdr, &mut input, release, layout);
-                    let page_key_scrolls_herdr = chord.name == "plain"
-                        && matches!(key_name.as_str(), "pageup" | "pagedown")
-                        && herdr.runtime.plain_page_keys_use_host_scrollback() == Some(true);
-                    let (Some(pressed), Some(released), false) =
-                        (pressed, released, page_key_scrolls_herdr)
-                    else {
+                    let (Some(pressed), Some(released)) = (pressed, released) else {
                         tally.herdr_owned += 1;
                         herdr.reset_client();
                         input = Default::default();

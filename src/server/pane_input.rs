@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use crossterm::event::{KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
+use crossterm::event::{KeyEventKind, KeyModifiers, MouseEventKind};
 
 use crate::protocol::{AttachScrollDirection, AttachScrollSource, ClientPaneInputEvent};
 
@@ -213,7 +213,7 @@ pub(super) fn apply_client_pane_input_events(
     events: &[ClientPaneInputEvent],
 ) -> Result<bool, String> {
     let mut keyboard_forwarded = false;
-    apply_client_terminal_input_events(runtime, events, true, &mut keyboard_forwarded)?;
+    apply_client_terminal_input_events(runtime, events, &mut keyboard_forwarded)?;
     Ok(keyboard_forwarded)
 }
 
@@ -222,14 +222,13 @@ pub(super) fn apply_client_popup_input_events(
     events: &[ClientPaneInputEvent],
 ) -> Result<bool, String> {
     let mut keyboard_forwarded = false;
-    apply_client_terminal_input_events(runtime, events, false, &mut keyboard_forwarded)?;
+    apply_client_terminal_input_events(runtime, events, &mut keyboard_forwarded)?;
     Ok(keyboard_forwarded)
 }
 
 pub(super) fn apply_client_terminal_input_events(
     runtime: &crate::terminal::TerminalRuntime,
     events: &[ClientPaneInputEvent],
-    host_page_keys: bool,
     keyboard_forwarded: &mut bool,
 ) -> Result<(), String> {
     for event in events {
@@ -304,25 +303,6 @@ pub(super) fn apply_client_terminal_input_events(
         match event.to_raw_input_event() {
             crate::raw_input::RawInputEvent::Key(key) => {
                 let key_event = key.as_key_event();
-                if host_page_keys
-                    && matches!(key_event.code, KeyCode::PageUp | KeyCode::PageDown)
-                    && key_event.modifiers.is_empty()
-                    && runtime.plain_page_keys_use_host_scrollback() == Some(true)
-                {
-                    match key_event.kind {
-                        KeyEventKind::Release => continue,
-                        KeyEventKind::Press | KeyEventKind::Repeat => {
-                            let lines = runtime.current_size().0.max(1) as usize;
-                            if key_event.code == KeyCode::PageUp {
-                                runtime.scroll_up(lines);
-                            } else {
-                                runtime.scroll_down(lines);
-                            }
-                            continue;
-                        }
-                    }
-                }
-
                 runtime.scroll_reset();
                 let bytes = runtime.encode_terminal_key(key);
                 if !bytes.is_empty() {
