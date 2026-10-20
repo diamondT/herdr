@@ -33,6 +33,10 @@ const MISE_INSTALLS_DIR_ENV: &str = "MISE_INSTALLS_DIR";
 const FAKE_UPDATE_VERSION_ENV: &str = "HERDR_FAKE_UPDATE_VERSION";
 const FAKE_UPDATE_NOTES_VERSION_ENV: &str = "HERDR_FAKE_UPDATE_NOTES_VERSION";
 const DEFAULT_FAKE_UPDATE_NOTES_VERSION: &str = "0.3.0";
+// Local build: self-update would replace it with the official release.
+const SELF_UPDATE_DISABLED: bool = true;
+const SELF_UPDATE_DISABLED_MESSAGE: &str =
+    "herdr update is disabled for this local build; rebuild from source to update.";
 #[cfg(not(windows))]
 const SERVER_STOP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5);
 #[cfg(not(windows))]
@@ -2107,6 +2111,11 @@ fn homebrew_cellar_keg_root(path: &Path) -> Option<PathBuf> {
 
 /// Manual self-update command (`herdr update`).
 pub fn self_update(options: SelfUpdateOptions) -> Result<Version, String> {
+    if SELF_UPDATE_DISABLED {
+        println!("{SELF_UPDATE_DISABLED_MESSAGE}");
+        return Ok(Version::current());
+    }
+
     let channel = UpdateChannel::configured();
 
     if is_homebrew_managed_install() {
@@ -2996,6 +3005,14 @@ mod tests {
         assert!(running_inside_herdr_env(Some(crate::HERDR_ENV_VALUE)));
         assert!(!running_inside_herdr_env(None));
         assert!(!running_inside_herdr_env(Some("0")));
+    }
+
+    #[test]
+    fn self_update_is_a_noop_for_local_builds() {
+        assert_eq!(
+            self_update(SelfUpdateOptions::default()),
+            Ok(Version::current())
+        );
     }
 
     #[test]
