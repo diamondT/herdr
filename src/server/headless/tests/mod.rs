@@ -5821,59 +5821,33 @@ fn client_page_key(
 }
 
 #[test]
-fn client_plain_page_keys_scroll_shell_transcript_by_pane_height() {
+fn client_plain_page_keys_reach_the_shell() {
     with_terminal_attach_runtime(b"", 0, |runtime, input_rx| {
-        apply_client_pane_input_events(
-            runtime,
-            &[client_page_key(
-                crate::protocol::ClientKeyCode::PageUp,
-                crossterm::event::KeyModifiers::empty(),
-                crate::protocol::ClientKeyKind::Press,
-            )],
-        )
-        .expect("pane PageUp");
-        assert_eq!(
-            runtime
-                .scroll_metrics()
-                .expect("scroll metrics")
-                .offset_from_bottom,
-            5
-        );
-
-        apply_client_pane_input_events(
-            runtime,
-            &[client_page_key(
-                crate::protocol::ClientKeyCode::PageUp,
-                crossterm::event::KeyModifiers::empty(),
-                crate::protocol::ClientKeyKind::Release,
-            )],
-        )
-        .expect("pane PageUp release");
-        assert_eq!(
-            runtime
-                .scroll_metrics()
-                .expect("scroll metrics")
-                .offset_from_bottom,
-            5
-        );
-
-        apply_client_pane_input_events(
-            runtime,
-            &[client_page_key(
-                crate::protocol::ClientKeyCode::PageDown,
-                crossterm::event::KeyModifiers::empty(),
-                crate::protocol::ClientKeyKind::Press,
-            )],
-        )
-        .expect("pane PageDown");
-        assert_eq!(
-            runtime
-                .scroll_metrics()
-                .expect("scroll metrics")
-                .offset_from_bottom,
-            0
-        );
-        assert!(input_rx.try_recv().is_err(), "page keys reached the shell");
+        for (code, bytes) in [
+            (crate::protocol::ClientKeyCode::PageUp, b"\x1b[5~"),
+            (crate::protocol::ClientKeyCode::PageDown, b"\x1b[6~"),
+        ] {
+            apply_client_pane_input_events(
+                runtime,
+                &[client_page_key(
+                    code,
+                    crossterm::event::KeyModifiers::empty(),
+                    crate::protocol::ClientKeyKind::Press,
+                )],
+            )
+            .expect("pane page key");
+            assert_eq!(
+                input_rx.try_recv().expect("forwarded page key"),
+                Bytes::from_static(bytes)
+            );
+            assert_eq!(
+                runtime
+                    .scroll_metrics()
+                    .expect("scroll metrics")
+                    .offset_from_bottom,
+                0
+            );
+        }
     });
 }
 
